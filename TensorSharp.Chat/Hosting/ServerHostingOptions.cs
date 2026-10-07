@@ -67,8 +67,10 @@ namespace TensorSharp.Server.Hosting
             string? prefixCacheDirectory = null,
             bool embeddingsEnabled = false,
             int embeddingThreads = 0,
-            int embeddingContextSize = 0)
+            int embeddingContextSize = 0,
+            string? assistantAvatarPath = null)
         {
+            AssistantAvatarPath = assistantAvatarPath;
             EmbeddingsEnabled = embeddingsEnabled;
             EmbeddingThreads = embeddingThreads;
             EmbeddingContextSize = embeddingContextSize;
@@ -138,6 +140,13 @@ namespace TensorSharp.Server.Hosting
         /// and video APIs return) stays up.
         /// </summary>
         public bool WebUiEnabled { get; }
+
+        /// <summary>
+        /// Absolute path of the image served in place of the bundled
+        /// <c>/images/assistant_logo.png</c> (<c>--assistant-avatar</c> or
+        /// <c>TS_ASSISTANT_AVATAR</c>), or null to keep the bundled avatar.
+        /// </summary>
+        public string? AssistantAvatarPath { get; }
 
         /// <summary>Absolute path of the model the server was launched with, or null when no model is hosted.</summary>
         public string StartupModelPath { get; private set; }

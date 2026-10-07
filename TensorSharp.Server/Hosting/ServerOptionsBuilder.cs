@@ -145,6 +145,7 @@ public static class ServerOptionsBuilder
         string? noWebUiEnv = Environment.GetEnvironmentVariable("TS_NO_WEBUI");
         bool webUiEnabled = !configuredNoWebUi
             && (string.IsNullOrWhiteSpace(noWebUiEnv) || string.Equals(noWebUiEnv.Trim(), "0", StringComparison.Ordinal));
+        string? assistantAvatarPath = ResolveAssistantAvatarPath(args);
 
         return new ServerHostingOptions(
             startupModelPath,
@@ -186,7 +187,37 @@ public static class ServerOptionsBuilder
             prefixCacheDirectory: ResolvePrefixCacheDirectory(baseDirectory, startupModelPath),
             embeddingsEnabled: embeddingsEnabled,
             embeddingThreads: embeddingThreads,
-            embeddingContextSize: embeddingContextSize);
+            embeddingContextSize: embeddingContextSize,
+            assistantAvatarPath: assistantAvatarPath);
+    }
+
+    /// <summary>Image types the web UI's avatar &lt;img&gt; can render.</summary>
+    private static readonly string[] AssistantAvatarExtensions = { ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg" };
+
+    /// <summary>
+    /// The image to serve in place of the bundled assistant avatar: <c>--assistant-avatar</c>,
+    /// else <c>TS_ASSISTANT_AVATAR</c>, else null. Checked here so a typo in the path fails
+    /// at startup instead of as a broken image in the browser.
+    /// </summary>
+    internal static string? ResolveAssistantAvatarPath(string[] args)
+    {
+        string? configured = null;
+        for (int i = 0; i < args.Length; i++)
+            if (TryReadOption(args, ref i, "--assistant-avatar", out string? raw))
+                configured = raw;
+        if (string.IsNullOrWhiteSpace(configured))
+            configured = Environment.GetEnvironmentVariable("TS_ASSISTANT_AVATAR");
+        if (string.IsNullOrWhiteSpace(configured))
+            return null;
+
+        string fullPath = Path.GetFullPath(configured.Trim());
+        if (!File.Exists(fullPath))
+            throw new ArgumentException($"Assistant avatar image not found: '{fullPath}'.");
+        string extension = Path.GetExtension(fullPath);
+        if (!AssistantAvatarExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException(
+                $"Unsupported assistant avatar type '{extension}'. Expected one of: {string.Join(", ", AssistantAvatarExtensions)}.");
+        return fullPath;
     }
 
     private static int ReadEmbeddingIntOption(string[] args, string flag)
@@ -1033,6 +1064,9 @@ public static class ServerOptionsBuilder
                 || TryReadOption(args, ref i, "--embedding-context-size", out _))
                 continue;
 
+            if (TryReadOption(args, ref i, "--assistant-avatar", out _))
+                continue;
+
             if (TryReadOption(args, ref i, "--mmproj", out string? mmProjOption))
             {
                 configuredMmProj = mmProjOption;
@@ -1471,7 +1505,7 @@ public static class ServerOptionsBuilder
         {
             "--model", "--mmproj", "--backend", "--max-tokens", "--video-frames", "--fps",
             "--embeddings", "--embedding-threads", "--embedding-context-size",
-            "--port", "--host", "--urls", "--no-webui", "--no-prefix-cache",
+            "--port", "--host", "--urls", "--no-webui", "--assistant-avatar", "--no-prefix-cache",
             "--temperature", "--top-k", "--top-p", "--min-p",
             "--repeat-penalty", "--repeat-last-n", "--presence-penalty", "--frequency-penalty",
             "--seed", "--stop", "--sampling-precedence",

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TensorSharp Models</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-0: #f4f4f2; --surface-1: #fcfcfb; --border: #e2e1dc;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #7a7974;
+  --accent: #2a78d6; --accent-ink: #ffffff;
+  --good: #008300; --warning: #b77900; --critical: #d03b3a;
+  --code-bg: #f0efec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #111110; --surface-1: #1a1a19; --border: #2e2e2c;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+    --accent: #3987e5; --accent-ink: #ffffff;
+    --good: #2ea043; --warning: #e0a526; --critical: #e66767;
+    --code-bg: #141413;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #111110; --surface-1: #1a1a19; --border: #2e2e2c;
+  --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+  --accent: #3987e5; --accent-ink: #ffffff;
+  --good: #2ea043; --warning: #e0a526; --critical: #e66767; --code-bg: #141413;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface-0); color: var(--text-primary);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 28px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 4px; font-weight: 650; }
+.lede { color: var(--text-secondary); margin: 0 0 20px; }
+.status { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+.pill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); }
+.pill.ready .dot { background: var(--good); }
+.pill.starting .dot, .pill.stopping .dot { background: var(--warning); animation: pulse 1s ease-in-out infinite; }
+.pill.failed .dot { background: var(--critical); }
+@keyframes pulse { 50% { opacity: .35; } }
+.status .which { color: var(--text-secondary); flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+button, a.btn { font: inherit; font-weight: 600; border-radius: 8px; padding: 7px 14px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); text-decoration: none; }
+button.primary, a.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button:disabled { opacity: .5; cursor: default; }
+a.btn[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+.error { color: var(--critical); width: 100%; overflow-wrap: anywhere; }
+.list { display: grid; gap: 10px; }
+.preset { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  display: flex; gap: 12px; align-items: center; }
+.preset.current { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.preset .text { flex: 1; min-width: 0; }
+.preset h2 { font-size: 15px; margin: 0; font-weight: 600; }
+.preset p { margin: 2px 0 0; color: var(--text-secondary); font-size: 13px; }
+.preset .tag { font-size: 12px; color: var(--accent); font-weight: 600; white-space: nowrap; }
+details { margin-top: 20px; }
+summary { cursor: pointer; color: var(--text-secondary); }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-x: auto; white-space: pre-wrap;
+  word-break: break-word; max-height: 360px; overflow-y: auto; margin: 8px 0 0; }
+.note { font-size: 12px; color: var(--text-muted); margin-top: 16px; }
+label.auto { font-size: 13px; color: var(--text-secondary); display: inline-flex; gap: 6px; align-items: center; }
+@media (max-width: 520px) { .preset { flex-direction: column; align-items: stretch; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>TensorSharp models</h1>
+  <p class="lede">One model runs at a time. Switching stops the current server and starts the chosen one on the same address.</p>
+
+  <section class="status" aria-live="polite">
+    <span id="pill" class="pill"><span class="dot"></span><span id="pillText">…</span></span>
+    <span id="which" class="which"></span>
+    <span class="actions">
+      <a id="open" class="btn primary" target="_blank" rel="noopener" aria-disabled="true">Open chat UI</a>
+      <button id="stop">Stop</button>
+    </span>
+    <span id="error" class="error" hidden></span>
+  </section>
+
+  <section class="list" id="list"></section>
+
+  <p><label class="auto"><input type="checkbox" id="auto" checked> Open the chat UI when a switch finishes</label></p>
+
+  <details id="logBox">
+    <summary>Server log</summary>
+    <pre id="log"></pre>
+  </details>
+  <p class="note" id="note"></p>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let state = null, switching = false, pendingOpen = false, wasStatus = null;
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const since = (t) => { if (!t) return ""; const s = Math.round(Date.now() / 1000 - t); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`; };
+
+function render() {
+  if (!state) return;
+  const uiUrl = `http://${location.hostname}:${state.port}/`;
+  const preset = state.presets.find((p) => p.id === state.presetId);
+  const label = { ready: "Running", stopping: "Stopping current model…", starting: "Loading…", failed: "Failed", stopped: "Stopped" }[state.status] || state.status;
+  $("pill").className = "pill " + state.status;
+  $("pillText").textContent = label;
+  $("which").textContent = preset ? preset.name + (state.status === "starting" ? ` · ${since(state.startedAt)}` : "")
+    : state.status === "ready" ? "an unlisted model" : "";
+  $("open").href = uiUrl;
+  $("open").setAttribute("aria-disabled", state.status === "ready" ? "false" : "true");
+  $("stop").disabled = state.status === "stopped" || state.busy || switching;
+  $("error").hidden = !state.error;
+  $("error").textContent = state.error || "";
+
+  const busy = state.busy || switching || state.status === "starting" || state.status === "stopping";
+  $("list").innerHTML = state.presets.map((p) => {
+    const cur = p.id === state.presetId && state.status !== "stopped";
+    const btn = cur && state.status === "ready" ? `<span class="tag">Running</span>`
+      : cur && (state.status === "starting" || state.status === "stopping") ? `<span class="tag">Loading…</span>`
+      : `<button class="${cur ? "" : "primary"}" data-id="${esc(p.id)}" ${busy ? "disabled" : ""}>${cur ? "Retry" : "Switch"}</button>`;
+    return `<div class="preset${cur ? " current" : ""}"><div class="text"><h2>${esc(p.name)}</h2><p>${esc(p.description)}</p></div>${btn}</div>`;
+  }).join("");
+
+  if (state.logTail.length) { $("log").textContent = state.logTail.join("\n"); if (state.status === "failed") $("logBox").open = true; }
+  $("note").textContent = `Models are served at ${uiUrl} · log: ${state.log}`;
+
+  if (pendingOpen && (wasStatus === "starting" || wasStatus === "stopping") && state.status === "ready") { pendingOpen = false; window.open(uiUrl, "_blank", "noopener"); }
+  if (state.status === "failed") pendingOpen = false;
+  wasStatus = state.status;
+}
+
+async function refresh() {
+  try { state = await (await fetch("/api/state", { cache: "no-store" })).json(); }
+  catch { if (state) { state.status = "failed"; state.error = "switcher not reachable"; } }
+  render();
+}
+
+$("list").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-id]");
+  if (!b) return;
+  switching = true; pendingOpen = $("auto").checked; render();
+  const r = await fetch("/api/switch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: b.dataset.id }) });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.error || "Switch failed"); pendingOpen = false; }
+  // stopping the old model takes a moment; keep buttons disabled until the server reports "starting"
+  switching = false; wasStatus = "starting"; refresh();
+});
+$("stop").addEventListener("click", async () => {
+  $("stop").disabled = true;
+  const r = await fetch("/api/stop", { method: "POST" });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.error || "Stop failed"); }
+  refresh();
+});
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

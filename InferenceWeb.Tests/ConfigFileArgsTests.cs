@@ -130,7 +130,7 @@ public class ConfigFileArgsTests : IDisposable
     // point -- the addition is where you notice whether the CLI spells it the same.
     private static readonly HashSet<string> ServerRecognizedConfigKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "model", "mmproj", "backend", "max-tokens", "host", "port", "urls", "no-webui",
+        "model", "mmproj", "backend", "max-tokens", "host", "port", "urls", "no-webui", "assistant-avatar",
         "embeddings", "embedding-threads", "embedding-context-size",
         "no-prefix-cache",
         "temperature", "top-k", "top-p", "min-p", "seed", "stop", "sampling-precedence",

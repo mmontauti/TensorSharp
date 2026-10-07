@@ -9,6 +9,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.StaticFiles;
 using TensorSharp.GGML;
 using TensorSharp.Runtime.Logging;
 using TensorSharp.AgentHost.CodeExec;
@@ -544,6 +545,28 @@ app.UseEmbeddingModelGuard();
 // because the image and video APIs return result URLs under it.
 if (hostingOptions.WebUiEnabled)
 {
+    // --assistant-avatar swaps the bundled logo without touching wwwroot: the
+    // UI keeps requesting /images/assistant_logo.png and gets the operator's
+    // file. Registered ahead of UseStaticFiles, which would serve the bundled one.
+    if (hostingOptions.AssistantAvatarPath is string avatarPath)
+    {
+        new FileExtensionContentTypeProvider().TryGetContentType(avatarPath, out string? avatarContentType);
+        app.Use(async (context, next) =>
+        {
+            if ((HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
+                && context.Request.Path.Equals("/images/assistant_logo.png", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.ContentType = avatarContentType ?? "application/octet-stream";
+                context.Response.Headers.CacheControl = "no-cache";
+                context.Response.Headers.XContentTypeOptions = "nosniff";
+                await context.Response.SendFileAsync(avatarPath);
+                return;
+            }
+            await next();
+        });
+        startupLogger.LogInformation(LogEventIds.HostConfiguration,
+            "Assistant avatar: serving {AvatarPath} as /images/assistant_logo.png", avatarPath);
+    }
     app.UseDefaultFiles();
     app.UseStaticFiles();
 }

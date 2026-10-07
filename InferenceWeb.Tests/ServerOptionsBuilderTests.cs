@@ -1409,6 +1409,64 @@ public class ServerOptionsBuilderTests : IDisposable
         Assert.False(options.WebUiEnabled);
     }
 
+    [Fact]
+    public void Build_Default_NoAssistantAvatar()
+    {
+        _env.Set("TS_ASSISTANT_AVATAR", null);
+        Assert.Null(ServerOptionsBuilder.Build(Array.Empty<string>(), _baseDir).AssistantAvatarPath);
+    }
+
+    [Fact]
+    public void Build_AssistantAvatarFlag_ResolvesFullPath()
+    {
+        _env.Set("TS_ASSISTANT_AVATAR", null);
+        string avatar = Path.Combine(_baseDir, "avatar.png");
+        File.WriteAllBytes(avatar, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
+        var options = ServerOptionsBuilder.Build(new[] { "--assistant-avatar", avatar }, _baseDir);
+        Assert.Equal(Path.GetFullPath(avatar), options.AssistantAvatarPath);
+    }
+
+    [Fact]
+    public void Build_AssistantAvatarFlag_OverridesEnvVar()
+    {
+        string fromEnv = Path.Combine(_baseDir, "env.png");
+        string fromFlag = Path.Combine(_baseDir, "flag.webp");
+        File.WriteAllBytes(fromEnv, new byte[] { 1 });
+        File.WriteAllBytes(fromFlag, new byte[] { 1 });
+        _env.Set("TS_ASSISTANT_AVATAR", fromEnv);
+        var options = ServerOptionsBuilder.Build(new[] { "--assistant-avatar=" + fromFlag }, _baseDir);
+        Assert.Equal(Path.GetFullPath(fromFlag), options.AssistantAvatarPath);
+    }
+
+    [Fact]
+    public void Build_AssistantAvatarEnvVar_UsedWithoutFlag()
+    {
+        string fromEnv = Path.Combine(_baseDir, "env.svg");
+        File.WriteAllText(fromEnv, "<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
+        _env.Set("TS_ASSISTANT_AVATAR", fromEnv);
+        Assert.Equal(Path.GetFullPath(fromEnv), ServerOptionsBuilder.Build(Array.Empty<string>(), _baseDir).AssistantAvatarPath);
+    }
+
+    [Fact]
+    public void Build_AssistantAvatarMissingFile_Throws()
+    {
+        _env.Set("TS_ASSISTANT_AVATAR", null);
+        var ex = Assert.Throws<ArgumentException>(() => ServerOptionsBuilder.Build(
+            new[] { "--assistant-avatar", Path.Combine(_baseDir, "missing.png") }, _baseDir));
+        Assert.Contains("not found", ex.Message);
+    }
+
+    [Fact]
+    public void Build_AssistantAvatarUnsupportedType_Throws()
+    {
+        _env.Set("TS_ASSISTANT_AVATAR", null);
+        string avatar = Path.Combine(_baseDir, "avatar.bmp");
+        File.WriteAllBytes(avatar, new byte[] { 1 });
+        var ex = Assert.Throws<ArgumentException>(
+            () => ServerOptionsBuilder.Build(new[] { "--assistant-avatar", avatar }, _baseDir));
+        Assert.Contains(".bmp", ex.Message);
+    }
+
     // ---- Usage page vs parser: the whole class of "documented but rejected" ----
     //
     // The server applies several flag families in passes that run BEFORE

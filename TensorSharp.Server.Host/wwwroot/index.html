@@ -535,6 +535,15 @@ button.primary:hover { background: var(--accent-hover); }
   color: var(--text2);
 }
 
+.image-size select {
+  margin-left: 6px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .settings-hint {
   margin-top: 10px;
   font-size: 12px;
@@ -1116,6 +1125,18 @@ button.primary:hover { background: var(--accent-hover); }
         <span>Reasoning</span>
       </label>
       <button type="button" class="model-value skills-pill" id="skills-pill" style="display:none" onclick="openSkillsModal()" title="Agent Skills the model can use">&#x1F9E9; Skills</button>
+      <label class="model-value image-size" id="image-size-control" style="display:none" title="Output size of generated and edited images. Larger sizes need much more memory and time.">Image size
+        <select id="image-size" onchange="saveImageSize()">
+          <option value="">Model default (2048×2048; edits keep aspect)</option>
+          <option value="512x512">512 × 512</option>
+          <option value="768x768">768 × 768</option>
+          <option value="1024x1024" selected>1024 × 1024</option>
+          <option value="1344x768">1344 × 768 (landscape)</option>
+          <option value="768x1344">768 × 1344 (portrait)</option>
+          <option value="1152x896">1152 × 896 (4:3)</option>
+          <option value="1536x1536">1536 × 1536</option>
+        </select>
+      </label>
     </div>
     <div class="input-row">
       <div class="input-wrapper">
@@ -1168,6 +1189,8 @@ let currentArchitecture = null;
 // MiniMax-H3 Ref2VA and a refused request on FL2VA, so this decides the shape of a
 // video request rather than merely labelling it.
 let currentVideoCaps = null;
+// Architectures whose /api/models 'architecture' id means "this model generates images".
+const IMAGE_ARCHITECTURES = new Set(['qwen_image', 'qwen-image']);
 // Architectures whose /api/models 'architecture' id means "this model generates video".
 // The id comes from GGUF metadata, so it is matched rather than renamed.
 const VIDEO_ARCHITECTURES = new Set(['wan', 'wan2.1', 'wan2.2', 'minimax-h3']);
@@ -1249,6 +1272,7 @@ function legacyStatusBadge(data) {
   currentLoadedModel = data.loaded || null;
   currentArchitecture = data.architecture || null;
   currentVideoCaps = data.video || null;
+  updateImageSizeControl();
 
   if (!currentLoadedModel) {
     statusBadge.textContent = 'No model configured';
@@ -1268,10 +1292,37 @@ function legacyStatusBadge(data) {
   statusBadge.classList.add('loaded');
 }
 
+// The image-size control only applies to image-generation models; the size is
+// sent as explicit width/height, which the server rounds to its 32-pixel grid.
+function updateImageSizeControl() {
+  const control = document.getElementById('image-size-control');
+  if (!control) return;
+  const show = IMAGE_ARCHITECTURES.has(currentArchitecture);
+  control.style.display = show ? '' : 'none';
+  if (show) {
+    try {
+      const saved = localStorage.getItem('tensorsharp.imageSize');
+      const select = document.getElementById('image-size');
+      if (saved !== null && [...select.options].some(o => o.value === saved)) select.value = saved;
+    } catch {}
+  }
+}
+
+function saveImageSize() {
+  try { localStorage.setItem('tensorsharp.imageSize', document.getElementById('image-size').value); } catch {}
+}
+
+function selectedImageSize() {
+  const select = document.getElementById('image-size');
+  const m = select && /^(\d+)x(\d+)$/.exec(select.value);
+  return m ? { width: +m[1], height: +m[2] } : {};
+}
+
 function updateStatusBadge(data) {
   currentLoadedModel = data.loaded || null;
   currentArchitecture = data.architecture || null;
   currentVideoCaps = data.video || null;
+  updateImageSizeControl();
 
   if (!currentLoadedModel) {
     statusBadge.textContent = 'No model configured';
@@ -2110,7 +2161,7 @@ async function runImageEdit(userMsg, bubbleText, statsDiv, queueDiv) {
     const res = await fetch(editing ? '/api/image-edit/stream' : '/api/image-generate/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imagePaths: userMsg.imagePaths, prompt: userMsg.content || '' }),
+      body: JSON.stringify({ imagePaths: userMsg.imagePaths, prompt: userMsg.content || '', ...selectedImageSize() }),
       signal: currentAbortController.signal
     });
     if (!res.ok) {
@@ -2331,7 +2382,7 @@ async function requestAssistantResponse() {
 
     // Qwen image models use the diffusion endpoints; an attachment selects editing.
     const _lastUser = chatHistory[chatHistory.length - 1];
-    if ((currentArchitecture === 'qwen_image' || currentArchitecture === 'qwen-image') && _lastUser) {
+    if (IMAGE_ARCHITECTURES.has(currentArchitecture) && _lastUser) {
       await runImageEdit(_lastUser, bubbleText, statsDiv, queueDiv);
       return;
     }

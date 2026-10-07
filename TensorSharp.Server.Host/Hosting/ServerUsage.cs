@@ -124,6 +124,11 @@ namespace TensorSharp.Server.Host.Hosting
                     "Do not serve the bundled web UI; GET / answers the plain liveness text instead. All HTTP API " +
                     "endpoints (including /uploads) stay up. Default: UI on (TS_NO_WEBUI env var overrides).",
                     "--no-webui"),
+                new OptionHelp("--assistant-avatar <path>",
+                    "Image shown as the assistant's avatar in the web UI (png, jpg, gif, webp, or svg; square, 144px or " +
+                    "larger looks sharpest). Served in place of the bundled /images/assistant_logo.png, so wwwroot stays " +
+                    "unchanged. Default: the bundled logo (TS_ASSISTANT_AVATAR env var sets it when the flag is absent).",
+                    "--assistant-avatar ~/Pictures/my-avatar.png"),
                 new OptionHelp("--no-prefix-cache",
                     "Disable runtime prefix reuse, startup prompt preparation, and persistence between " +
                     "launches. Radix KV caching is enabled by default. The server forwards its shared prompt once at startup and saves the result, so " +

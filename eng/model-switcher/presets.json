@@ -1,0 +1,47 @@
+{
+  // Model presets for eng/model-switcher. Each preset is the argument list for
+  // TensorSharp.Server.Host; paths are relative to the repository root. The
+  // switcher adds --port itself, so leave it out. Only one preset runs at a time.
+  "port": 5080,
+  "presets": [
+    {
+      "id": "qwen38-27b-skills",
+      "name": "Qwen 3.8 27B · chat + skills",
+      "description": "Text chat (IQ3_XXS, 10.9 GB) with Agent Skills and sandboxed skill scripts.",
+      "args": [
+        "--model", "models/Qwen3.8-27B-UD-IQ3_XXS.gguf",
+        "--backend", "ggml_metal",
+        "--max-tokens", "4096",
+        "--kv-cache-dtype", "q8_0",
+        "--skills-dir", "TensorAgent/skills",
+        "--skills-allow-exec"
+      ]
+    },
+    {
+      "id": "qwen-image-21",
+      "name": "Qwen-Image 2.1 · image generation",
+      "description": "Text-to-image and image editing (Q4_K_M + Qwen3-VL-8B encoder, 10.3 GB).",
+      "args": [
+        "--model", "models/qwen-image-2.1/qwen_image_2.1_Q4_K_M.gguf",
+        "--qwen-image-vae", "models/qwen-image-2.1/qwen_image_2.1_vae_bf16.safetensors",
+        "--qwen-image-vl", "models/qwen-image-2.1/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+        "--qwen-image-mmproj", "models/qwen-image-2.1/mmproj-Qwen3VL-8B-Instruct-F16.gguf",
+        "--backend", "ggml_metal",
+        "--skills-dir", "TensorAgent/skills",
+        "--skills-allow-exec"
+      ]
+    },
+    {
+      "id": "gemma4-e4b",
+      "name": "Gemma 4 E4B · chat",
+      "description": "Small, fast text chat (Q8_0, 7.2 GB).",
+      "args": [
+        "--model", "models/gemma-4-E4B-it-Q8_0.gguf",
+        "--backend", "ggml_metal",
+        "--max-tokens", "4096",
+        "--skills-dir", "TensorAgent/skills",
+        "--skills-allow-exec"
+      ]
+    }
+  ]
+}
