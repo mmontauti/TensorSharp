@@ -13,6 +13,10 @@ Standard library only:
 
 The server's output goes to artifacts/model-switcher/server.log (truncated on
 each switch), which eng/perf-dashboard can follow with --log.
+
+The TensorSharp chat UI also drives this API from its header: requests from the
+model server's own origin (localhost/127.0.0.1 on the preset port, plus any
+--allow-origin) get CORS headers; POSTs from any other origin are refused.
 """
 
 import argparse
@@ -98,8 +102,9 @@ def tail(path, lines=40):
 
 
 class Switcher:
-    def __init__(self, presets_path):
+    def __init__(self, presets_path, dashboard_url=None):
         cfg = load_jsonc(presets_path)
+        self.dashboard_url = dashboard_url
         self.port = int(cfg.get("port", 5080))
         self.presets = cfg["presets"]
         self.by_id = {p["id"]: p for p in self.presets}
@@ -141,7 +146,7 @@ class Switcher:
     def snapshot(self):
         with self.lock:
             s = dict(self.state)
-        s.update(port=self.port, busy=self.busy, log=str(LOG_PATH),
+        s.update(port=self.port, busy=self.busy, log=str(LOG_PATH), dashboardUrl=self.dashboard_url,
                  logTail=tail(LOG_PATH) if s["status"] in ("stopping", "starting", "failed") else [],
                  presets=[{k: p.get(k) for k in ("id", "name", "description")} for p in self.presets])
         return s
@@ -226,10 +231,13 @@ class Switcher:
             dotnet_home = Path.home() / ".dotnet"
             if "DOTNET_ROOT" not in env and (dotnet_home / "dotnet").exists():
                 env["DOTNET_ROOT"] = str(dotnet_home)
+            # Settings the host reads only from the environment (e.g. MAX_CONTEXT).
+            preset_env = {k: str(v) for k, v in preset.get("env", {}).items()}
+            env.update(preset_env)
             LOG_DIR.mkdir(parents=True, exist_ok=True)
             log = open(LOG_PATH, "w", encoding="utf-8")
             cmd = [str(HOST_BIN), *preset["args"], "--port", str(self.port)]
-            log.write("$ " + " ".join(cmd) + "\n")
+            log.write("$ " + "".join(f"{k}={v} " for k, v in preset_env.items()) + " ".join(cmd) + "\n")
             log.flush()
             # Own session: the model server outlives a restart of this switcher.
             proc = subprocess.Popen(cmd, cwd=REPO, env=env, stdout=log, stderr=subprocess.STDOUT,
@@ -272,17 +280,31 @@ class Switcher:
                 self.state.update(status="failed", error=f"not ready after {READY_TIMEOUT_S} s")
 
 
-def make_handler(sw):
+def make_handler(sw, allowed_origins):
     page_path = HERE / "switcher.html"
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
 
+        def _cross_origin(self):
+            """The request's Origin when it is another site, else None (same origin or no header)."""
+            origin = self.headers.get("Origin")
+            if not origin or origin == f"http://{self.headers.get('Host')}":
+                return None
+            return origin
+
+        def _cors(self):
+            origin = self._cross_origin()
+            if origin in allowed_origins:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Vary", "Origin")
+
         def _send(self, code, body, ctype="application/json"):
             if isinstance(body, (dict, list)):
                 body = json.dumps(body).encode()
             self.send_response(code)
+            self._cors()
             self.send_header("Content-Type", ctype)
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(body)))
@@ -298,8 +320,22 @@ def make_handler(sw):
             else:
                 self._send(404, {"error": "not found"})
 
+        def do_OPTIONS(self):
+            self.send_response(204)
+            self._cors()
+            self.send_header("Access-Control-Allow-Methods", "GET, POST")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Max-Age", "600")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
         def do_POST(self):
             path = self.path.split("?")[0]
+            # Any web page can send a form POST here; only this page and the
+            # chat UI's origin may stop or start models.
+            origin = self._cross_origin()
+            if origin and origin not in allowed_origins:
+                return self._send(403, {"error": f"origin {origin} is not allowed"})
             length = int(self.headers.get("Content-Length") or 0)
             try:
                 body = json.loads(self.rfile.read(length) or b"{}")
@@ -330,14 +366,20 @@ def main():
     p.add_argument("--host", default="127.0.0.1", help="switcher bind address")
     p.add_argument("--port", type=int, default=5099, help="switcher page port")
     p.add_argument("--start", metavar="PRESET", help="switch to this preset on startup")
+    p.add_argument("--dashboard-url", default="http://127.0.0.1:5090",
+                   help="eng/perf-dashboard address the chat UI links to ('' to hide the link)")
+    p.add_argument("--allow-origin", action="append", default=[], metavar="ORIGIN",
+                   help="extra origin (e.g. http://192.168.1.20:5080) whose pages may use this API")
     args = p.parse_args()
 
-    sw = Switcher(args.presets)
+    sw = Switcher(args.presets, args.dashboard_url or None)
+    allowed_origins = {f"http://{h}:{sw.port}" for h in ("localhost", "127.0.0.1")}
+    allowed_origins.update(o.rstrip("/") for o in args.allow_origin)
     if args.start:
         if args.start not in sw.by_id:
             raise SystemExit(f"unknown preset '{args.start}'; known: {', '.join(sw.by_id)}")
         threading.Thread(target=sw.switch, args=(args.start,), daemon=True).start()
-    httpd = ThreadingHTTPServer((args.host, args.port), make_handler(sw))
+    httpd = ThreadingHTTPServer((args.host, args.port), make_handler(sw, allowed_origins))
     print(f"TensorSharp model switcher: http://{args.host}:{args.port}  "
           f"(models on port {sw.port}, log {LOG_PATH})", flush=True)
     try:

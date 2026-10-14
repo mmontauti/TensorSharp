@@ -138,6 +138,40 @@ a.brand-home {
   color: var(--success);
 }
 
+/* Model picker backed by eng/model-switcher; hidden when no switcher answers. */
+.model-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.model-control select {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 8px;
+  font: inherit;
+  font-size: 13px;
+  max-width: 240px;
+  cursor: pointer;
+}
+
+.model-control select:disabled { opacity: 0.6; cursor: default; }
+.model-control button { padding: 7px 12px; }
+.model-control button.stop { color: var(--danger); }
+
+.perf-link {
+  font-size: 13px;
+  color: var(--text2);
+  text-decoration: none;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.perf-link:hover { color: var(--text); border-color: #444; }
+
 #queue-badge.queue-active {
   display: inline-flex;
   align-items: center;
@@ -223,6 +257,94 @@ button.primary:hover { background: var(--accent-hover); }
 }
 
 #model-panel select { min-width: 280px; }
+
+/* Chat history: saved in localStorage, listed in a left pane. */
+.app-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+
+#history-pane {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  min-height: 0;
+}
+
+body.history-collapsed #history-pane { display: none; }
+
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+
+.history-head button { padding: 4px 10px; font-size: 12px; text-transform: none; letter-spacing: 0; }
+
+#history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-group {
+  font-size: 11px;
+  color: var(--text2);
+  padding: 12px 8px 4px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.history-item:hover { background: var(--surface2); }
+.history-item.active { background: var(--user-bg); }
+
+.history-item .history-title {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 4px 8px 10px;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-item .history-delete {
+  visibility: hidden;
+  background: none;
+  border: none;
+  color: var(--text2);
+  padding: 4px 8px;
+  font-size: 14px;
+}
+
+.history-item:hover .history-delete,
+.history-item.active .history-delete { visibility: visible; }
+.history-item .history-delete:hover { color: var(--danger); background: none; }
+
+.history-empty { font-size: 13px; color: var(--text2); padding: 8px; line-height: 1.5; }
+
+#btn-history { padding: 8px 12px; }
 
 #chat-container {
   flex: 1;
@@ -703,6 +825,21 @@ button.primary:hover { background: var(--accent-hover); }
     padding: 10px 14px;
   }
 
+  /* Narrow screens: the history pane overlays the chat and starts closed. */
+  #history-pane {
+    display: none;
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: min(300px, 85vw);
+    z-index: 20;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+  }
+
+  body.history-open #history-pane { display: flex; }
+
+  .model-control select { max-width: 160px; }
+  .perf-label { display: none; }
+
   header h1 {
     font-size: 16px;
     gap: 10px;
@@ -1098,14 +1235,29 @@ button.primary:hover { background: var(--accent-hover); }
 
 <header>
   <h1>
+    <button type="button" id="btn-history" onclick="toggleHistoryPane()" title="Show or hide chat history">&#x2630;</button>
     <a class="brand-site-link" href="https://tensorsharp.ai" target="_blank" rel="noopener" title="Visit TensorSharp.ai">&#x1F310; TensorSharp.ai <span class="link-arrow">&#x2197;</span></a>
   </h1>
   <div class="header-controls">
+    <span class="model-control" id="model-control" style="display:none">
+      <select id="model-preset" title="Model presets from eng/model-switcher" onchange="renderModelControl()"></select>
+      <button type="button" id="model-run" onclick="onModelRunClick()">&#x25B6; Run</button>
+    </span>
+    <a class="perf-link" id="perf-link" style="display:none" target="_blank" rel="noopener" title="Open the live performance monitor">&#x1F4C8;<span class="perf-label"> Performance</span></a>
     <span id="queue-badge" class="status-badge" style="display:none" title="Live inference load: requests processing concurrently and waiting in the queue"></span>
     <span id="status-badge" class="status-badge">No model configured</span>
     <button id="btn-clear" title="New chat">&#x2795; New Chat</button>
   </div>
 </header>
+
+<div class="app-body">
+<aside id="history-pane" aria-label="Chat history">
+  <div class="history-head">
+    <span>Chats</span>
+    <button type="button" onclick="newChatFromPane()" title="Start a new chat">&#x2795; New</button>
+  </div>
+  <div id="history-list"></div>
+</aside>
 
 <div class="main-area">
   <div id="chat-container">
@@ -1149,6 +1301,7 @@ button.primary:hover { background: var(--accent-hover); }
     </div>
     <input type="file" id="file-input" multiple accept="image/*,video/*,audio/*,.pdf,.heic,.heif,.txt,.csv,.json,.xml,.md,.log,.py,.js,.ts,.cs,.java,.cpp,.c,.h,.html,.css,.yaml,.yml,.toml,.ini,.cfg,.sh,.bat,.ps1,.rb,.go,.rs,.swift,.kt,.sql,.r,.m,.tex,.rtf" onchange="handleFileSelect(event)">
   </div>
+</div>
 </div>
 
 <input type="file" id="skill-zip-input" accept=".zip" style="display:none" onchange="handleSkillZipSelect(event)">
@@ -1207,6 +1360,7 @@ let skillsErrors = [];
 let skillsInstallable = false;
 // Draft selection while the manager is open: Apply commits it, Cancel drops it.
 let pendingSkillSelection = null;
+const DEFAULT_SKILLS_KEY = 'tensorsharp.skills';
 let needsCacheReset = false;
 let shouldAutoScroll = true;
 let serverDefaultMaxTokens = 20000;
@@ -1351,6 +1505,7 @@ async function fetchServerState() {
     // Nullable on purpose: a server without the feature omits the block entirely.
     currentSkillsCaps = (data && typeof data.skills === 'object' && data.skills) ? data.skills : null;
     updateSkillsControl();
+    pruneUnavailableSkills();
     renderEmptyState();
     await createSession();
     return data;
@@ -1396,7 +1551,13 @@ async function disposeCurrentSession() {
 }
 
 async function clearChat() {
+  if (isGenerating) return;
+  currentChatId = null;
+  saveCurrentChatId();
+  renderHistoryList();
+  editOriginalHtml.clear();
   chatHistory = [];
+  applySkillSelection(readDefaultSkills());
   pendingAttachments = [];
   attachmentsDiv.innerHTML = '';
   chatContainer.innerHTML = '';
@@ -1564,6 +1725,59 @@ function setSelectedSkills(names) {
     // revert. Without this the server would silently reuse a mismatched KV cache.
     needsCacheReset = true;
   }
+  renderSkillChips();
+  updateSkillsControl();
+  // Every caller is a user action (modal, chip ✕, deleting a skill), so this
+  // becomes the default for new chats and part of the open chat's record.
+  try { localStorage.setItem(DEFAULT_SKILLS_KEY, JSON.stringify(selectedSkills)); } catch {}
+  if (changed && chatHistory.length > 0) saveCurrentChat();
+}
+
+// Skill selection restored from storage (a saved chat, or the default for new
+// chats). Not remembered again, and checked against the server's roster, since
+// /api/chat rejects a request naming a skill that is not installed.
+function applySkillSelection(names) {
+  const unique = [];
+  (Array.isArray(names) ? names : []).forEach(n => {
+    const name = String(n == null ? '' : n);
+    if (name && unique.indexOf(name) === -1) unique.push(name);
+  });
+  if (unique.length !== selectedSkills.length || unique.some((n, i) => n !== selectedSkills[i])) {
+    selectedSkills = unique;
+    needsCacheReset = true;
+  }
+  renderSkillChips();
+  // Before /api/models answers, updateSkillsControl would read "no skills" and
+  // clear the selection; fetchServerState runs it once the capabilities are known.
+  if (currentSkillsCaps) updateSkillsControl();
+  pruneUnavailableSkills();
+}
+
+function readDefaultSkills() {
+  try {
+    const names = JSON.parse(localStorage.getItem(DEFAULT_SKILLS_KEY) || '[]');
+    return Array.isArray(names) ? names : [];
+  } catch {
+    return [];
+  }
+}
+
+async function pruneUnavailableSkills() {
+  if (selectedSkills.length === 0 || !(currentSkillsCaps && currentSkillsCaps.enabled)) return;
+  let installed;
+  try {
+    const res = await fetch('/api/skills');
+    if (!res.ok) return;
+    const data = await res.json();
+    installed = new Set((data && Array.isArray(data.skills) ? data.skills : []).map(skillNameOf));
+  } catch {
+    return;
+  }
+  const keep = selectedSkills.filter(n => installed.has(n));
+  if (keep.length === selectedSkills.length) return;
+  console.info('Skills not installed on this server, deselected:', selectedSkills.filter(n => !installed.has(n)));
+  selectedSkills = keep;
+  needsCacheReset = true;
   renderSkillChips();
   updateSkillsControl();
 }
@@ -2121,6 +2335,7 @@ async function sendMessage() {
 
   chatHistory.push(msg);
   addUserBubble(userContent, attachmentsCopy, chatHistory.length - 1);
+  saveCurrentChat();
   messageInput.value = '';
   messageInput.style.height = 'auto';
   pendingAttachments = [];
@@ -2611,6 +2826,7 @@ async function requestAssistantResponse() {
     if (indicator) indicator.remove();
     const queueInd = assistDiv.querySelector('.queue-indicator');
     if (queueInd) queueInd.style.display = 'none';
+    saveCurrentChat();
   }
 }
 
@@ -2627,6 +2843,7 @@ function revertFrom(historyIdx) {
   if (chatHistory.length === 0) {
     renderEmptyState();
   }
+  saveCurrentChat();
 }
 
 function startEdit(historyIdx) {
@@ -2857,6 +3074,387 @@ async function pollQueueStatus() {
 
 pollQueueStatus();
 setInterval(pollQueueStatus, 1000);
+
+// ---- Model picker (eng/model-switcher) ----
+// The switcher runs beside this server on the same machine and restarts it with
+// another preset, so it lives on its own port; localStorage can point elsewhere.
+const MODEL_SWITCHER_URL = (() => {
+  try {
+    const saved = localStorage.getItem('tensorsharp.modelSwitcherUrl');
+    if (saved) return saved.replace(/\/$/, '');
+  } catch {}
+  return `${location.protocol}//${location.hostname}:5099`;
+})();
+let modelSwitcherState = null;
+// pid of the server this page was loaded from; a different ready pid means the
+// model changed underneath us, so the page reloads to pick up the new one.
+let modelControlPid;
+let modelControlRequestPending = false;
+
+async function pollModelSwitcher() {
+  let state = null;
+  try {
+    const res = await fetch(MODEL_SWITCHER_URL + '/api/state', { cache: 'no-store' });
+    if (res.ok) state = await res.json();
+  } catch {}
+  modelSwitcherState = state;
+  if (state) {
+    if (modelControlPid === undefined) modelControlPid = state.status === 'ready' ? state.pid : null;
+    else if (state.status === 'ready' && state.pid !== modelControlPid && !isGenerating) {
+      location.reload();
+      return;
+    }
+  }
+  renderModelControl();
+  const transitioning = state && (state.busy || state.status === 'starting' || state.status === 'stopping');
+  setTimeout(pollModelSwitcher, !state ? 15000 : transitioning ? 1500 : 4000);
+}
+
+function renderModelControl() {
+  const control = document.getElementById('model-control');
+  const perfLink = document.getElementById('perf-link');
+  const state = modelSwitcherState;
+  control.style.display = state ? '' : 'none';
+  perfLink.style.display = state && state.dashboardUrl ? '' : 'none';
+  if (!state) return;
+  if (state.dashboardUrl) perfLink.href = state.dashboardUrl;
+
+  const select = document.getElementById('model-preset');
+  const ids = state.presets.map(p => p.id).join('\n');
+  if (select.dataset.ids !== ids) {
+    const keep = select.value;
+    select.innerHTML = '';
+    for (const p of state.presets) {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name || p.id;
+      opt.title = p.description || '';
+      select.appendChild(opt);
+    }
+    select.dataset.ids = ids;
+    select.value = keep && state.presets.some(p => p.id === keep) ? keep : (state.presetId || state.presets[0]?.id || '');
+  }
+
+  const switching = state.busy || state.status === 'stopping' || state.status === 'starting';
+  const active = state.presetId && (state.status === 'ready' || state.status === 'starting');
+  const isStop = active && select.value === state.presetId;
+  const button = document.getElementById('model-run');
+  button.disabled = modelControlRequestPending || state.busy || state.status === 'stopping';
+  button.classList.toggle('stop', !!isStop);
+  button.innerHTML = isStop ? '&#x25A0; Stop' : '&#x25B6; Run';
+  button.title = isStop ? 'Stop the running model' : 'Stop the current model (if any) and start the selected one';
+  select.disabled = switching && !isStop;
+
+  const name = (state.presets.find(p => p.id === state.presetId) || {}).name || state.presetId;
+  if (state.status === 'starting' || state.status === 'stopping') {
+    statusBadge.textContent = state.status === 'starting' ? `Loading ${name}…` : 'Stopping model…';
+    statusBadge.classList.remove('loaded');
+  } else if (state.status === 'stopped') {
+    statusBadge.textContent = 'Model stopped';
+    statusBadge.classList.remove('loaded');
+  } else if (state.status === 'failed') {
+    statusBadge.textContent = 'Model failed to start';
+    statusBadge.title = state.error || '';
+    statusBadge.classList.remove('loaded');
+  }
+}
+
+async function onModelRunClick() {
+  const state = modelSwitcherState;
+  if (!state) return;
+  const select = document.getElementById('model-preset');
+  const stopping = state.presetId === select.value && (state.status === 'ready' || state.status === 'starting');
+  const target = state.presets.find(p => p.id === select.value);
+  const question = stopping
+    ? 'Stop the running model? The chat is unavailable until a model is started again.'
+    : `Start ${target ? target.name : select.value}? The running model is stopped; your chats stay in the history.`;
+  if ((chatHistory.length > 0 || stopping) && !confirm(question)) return;
+
+  modelControlRequestPending = true;
+  renderModelControl();
+  try {
+    const res = await fetch(MODEL_SWITCHER_URL + (stopping ? '/api/stop' : '/api/switch'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stopping ? {} : { id: select.value }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert('Model switcher: ' + (data.error || res.status));
+    }
+  } catch (e) {
+    alert('Model switcher is unreachable: ' + e.message);
+  } finally {
+    modelControlRequestPending = false;
+  }
+  if (stopping) modelControlPid = null;
+  try {
+    const res = await fetch(MODEL_SWITCHER_URL + '/api/state', { cache: 'no-store' });
+    if (res.ok) modelSwitcherState = await res.json();
+  } catch {}
+  renderModelControl();
+}
+
+pollModelSwitcher();
+
+// ---- Chat history (localStorage) ----
+// Index of chats under one key, each chat under its own key. A chat stores the
+// message list sent to /api/chat plus the rendered conversation, because image
+// and video results, reasoning and stats live only in the DOM. Uploaded and
+// generated files stay on the server; a chat stores only their URLs.
+const CHAT_INDEX_KEY = 'tensorsharp.chats';
+const CHAT_KEY_PREFIX = 'tensorsharp.chat.';
+const CURRENT_CHAT_KEY = 'tensorsharp.currentChat';
+const MAX_SAVED_CHATS = 200;
+// Inline image data (live denoising previews of a cancelled run) can be
+// megabytes; it is dropped from the saved copy rather than filling the quota.
+const MAX_INLINE_SRC = 64 * 1024;
+let currentChatId = null;
+
+function readChatIndex() {
+  try {
+    const list = JSON.parse(localStorage.getItem(CHAT_INDEX_KEY) || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeChatIndex(list) {
+  try { localStorage.setItem(CHAT_INDEX_KEY, JSON.stringify(list)); } catch {}
+}
+
+function readChat(id) {
+  try { return JSON.parse(localStorage.getItem(CHAT_KEY_PREFIX + id) || 'null'); } catch { return null; }
+}
+
+function saveCurrentChatId() {
+  try {
+    if (currentChatId) localStorage.setItem(CURRENT_CHAT_KEY, currentChatId);
+    else localStorage.removeItem(CURRENT_CHAT_KEY);
+  } catch {}
+}
+
+function chatTitleFrom(history) {
+  const first = history.find(m => m.role === 'user');
+  const att = first && first.attachments && first.attachments[0];
+  // A message with inlined file text starts with "[File: …]"; title it by the
+  // user's own words, which follow the file blocks.
+  let text = first ? String(first.content || '') : '';
+  const lastEnd = text.lastIndexOf('[End of file]');
+  if (lastEnd >= 0) text = text.slice(lastEnd + '[End of file]'.length);
+  text = text.replace(/\s+/g, ' ').trim();
+  return (text || (att && att.fileName) || 'New chat').slice(0, 80);
+}
+
+function snapshotChatHtml() {
+  const clone = chatContainer.cloneNode(true);
+  clone.querySelectorAll('.empty-state, .typing-indicator').forEach(el => el.remove());
+  clone.querySelectorAll('.queue-indicator').forEach(el => { el.style.display = 'none'; });
+  clone.querySelectorAll('img[src^="data:"]').forEach(img => {
+    if (img.getAttribute('src').length > MAX_INLINE_SRC) img.replaceWith(document.createTextNode('[preview not saved]'));
+  });
+  // A message open for editing is saved as it was before the edit started.
+  for (const [idx, html] of editOriginalHtml) {
+    const bubble = clone.querySelector(`.message[data-idx="${idx}"] .bubble`);
+    if (bubble) bubble.innerHTML = html;
+  }
+  return clone.innerHTML;
+}
+
+function saveCurrentChat() {
+  if (chatHistory.length === 0) {
+    // Everything was reverted: the chat is gone, not an empty entry.
+    if (currentChatId) deleteChat(currentChatId, true);
+    return;
+  }
+  const now = Date.now();
+  let index = readChatIndex();
+  if (!currentChatId) {
+    currentChatId = now.toString(36) + Math.random().toString(36).slice(2, 8);
+    saveCurrentChatId();
+  }
+  const entry = index.find(c => c.id === currentChatId);
+  const title = (entry && entry.title) || chatTitleFrom(chatHistory);
+  const record = {
+    id: currentChatId,
+    title,
+    model: currentLoadedModel,
+    createdAt: entry ? entry.createdAt : now,
+    updatedAt: now,
+    messages: chatHistory,
+    skills: selectedSkills.slice(),
+    html: snapshotChatHtml(),
+  };
+  index = [{ id: record.id, title, model: record.model, createdAt: record.createdAt, updatedAt: now },
+           ...index.filter(c => c.id !== currentChatId)];
+  // Oldest chats make room when the list is long or the browser's quota is full.
+  while (index.length > MAX_SAVED_CHATS) {
+    try { localStorage.removeItem(CHAT_KEY_PREFIX + index.pop().id); } catch {}
+  }
+  for (;;) {
+    try {
+      localStorage.setItem(CHAT_KEY_PREFIX + record.id, JSON.stringify(record));
+      break;
+    } catch (e) {
+      if (index.length <= 1) {
+        console.warn('Chat not saved: browser storage is full or unavailable.', e);
+        break;
+      }
+      try { localStorage.removeItem(CHAT_KEY_PREFIX + index.pop().id); } catch {}
+    }
+  }
+  writeChatIndex(index);
+  saveCurrentChatId();
+  renderHistoryList();
+}
+
+function deleteChat(id, silent) {
+  if (!silent) {
+    const entry = readChatIndex().find(c => c.id === id);
+    if (!confirm(`Delete "${entry ? entry.title : 'this chat'}"?`)) return;
+  }
+  try { localStorage.removeItem(CHAT_KEY_PREFIX + id); } catch {}
+  writeChatIndex(readChatIndex().filter(c => c.id !== id));
+  if (id === currentChatId) {
+    if (silent) {
+      currentChatId = null;
+      saveCurrentChatId();
+    } else {
+      clearChat();
+    }
+  }
+  renderHistoryList();
+}
+
+async function openChat(id) {
+  if (isGenerating) {
+    alert('Wait for the current reply to finish, or stop it, before switching chats.');
+    return;
+  }
+  if (id === currentChatId) {
+    closeHistoryPaneOnMobile();
+    return;
+  }
+  const record = readChat(id);
+  if (!record || !Array.isArray(record.messages)) {
+    alert('This chat could not be read from browser storage.');
+    deleteChat(id, true);
+    return;
+  }
+  // The server session holds the previous chat's KV cache; free it and resend
+  // this chat's history in full on the next turn.
+  await disposeCurrentSession();
+  await createSession();
+  loadChatRecord(record);
+  closeHistoryPaneOnMobile();
+}
+
+function loadChatRecord(record) {
+  currentChatId = record.id;
+  saveCurrentChatId();
+  chatHistory = record.messages;
+  editOriginalHtml.clear();
+  // Chats saved before selections were stored fall back to the default.
+  applySkillSelection(Array.isArray(record.skills) ? record.skills : readDefaultSkills());
+  pendingAttachments = [];
+  attachmentsDiv.innerHTML = '';
+  chatContainer.innerHTML = record.html || '';
+  needsCacheReset = true;
+  shouldAutoScroll = true;
+  if (chatHistory.length === 0) renderEmptyState();
+  scrollChatToBottom(true);
+  renderHistoryList();
+}
+
+function restoreLastChat() {
+  let id = null;
+  try { id = localStorage.getItem(CURRENT_CHAT_KEY); } catch {}
+  const record = id && readChat(id);
+  if (record && Array.isArray(record.messages) && record.messages.length > 0) loadChatRecord(record);
+  else applySkillSelection(readDefaultSkills());
+}
+
+function historyGroupLabel(ts) {
+  const day = 24 * 3600 * 1000;
+  const startOfToday = new Date().setHours(0, 0, 0, 0);
+  if (ts >= startOfToday) return 'Today';
+  if (ts >= startOfToday - day) return 'Yesterday';
+  if (ts >= startOfToday - 6 * day) return 'Previous 7 days';
+  if (ts >= startOfToday - 29 * day) return 'Previous 30 days';
+  return new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+}
+
+function renderHistoryList() {
+  const listEl = document.getElementById('history-list');
+  const index = readChatIndex();
+  listEl.innerHTML = '';
+  if (index.length === 0) {
+    listEl.innerHTML = '<div class="history-empty">Your chats are saved in this browser and listed here.</div>';
+    return;
+  }
+  let lastGroup = null;
+  for (const chat of index) {
+    const group = historyGroupLabel(chat.updatedAt || 0);
+    if (group !== lastGroup) {
+      const g = document.createElement('div');
+      g.className = 'history-group';
+      g.textContent = group;
+      listEl.appendChild(g);
+      lastGroup = group;
+    }
+    const item = document.createElement('div');
+    item.className = 'history-item' + (chat.id === currentChatId ? ' active' : '');
+    item.title = chat.title + (chat.model ? `\n${chat.model}` : '');
+    item.onclick = () => openChat(chat.id);
+    const title = document.createElement('span');
+    title.className = 'history-title';
+    title.textContent = chat.title;
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'history-delete';
+    del.title = 'Delete chat';
+    del.innerHTML = '&#x2715;';
+    del.onclick = e => { e.stopPropagation(); deleteChat(chat.id); };
+    item.append(title, del);
+    listEl.appendChild(item);
+  }
+}
+
+function isNarrowScreen() {
+  return window.matchMedia('(max-width: 720px)').matches;
+}
+
+function toggleHistoryPane() {
+  if (isNarrowScreen()) {
+    document.body.classList.toggle('history-open');
+  } else {
+    const collapsed = document.body.classList.toggle('history-collapsed');
+    try { localStorage.setItem('tensorsharp.historyCollapsed', collapsed ? '1' : ''); } catch {}
+  }
+}
+
+function closeHistoryPaneOnMobile() {
+  if (isNarrowScreen()) document.body.classList.remove('history-open');
+}
+
+function newChatFromPane() {
+  clearChat();
+  closeHistoryPaneOnMobile();
+}
+
+// Another tab saved or deleted a chat: refresh the list.
+window.addEventListener('storage', e => {
+  if (e.key === CHAT_INDEX_KEY) renderHistoryList();
+});
+
+try {
+  if (localStorage.getItem('tensorsharp.historyCollapsed') === '1') document.body.classList.add('history-collapsed');
+} catch {}
+// Runs before /api/models answers (fetchServerState awaits it), so the last chat
+// is back even when no model is running; renderEmptyState leaves it alone.
+restoreLastChat();
+renderHistoryList();
 </script>
 </body>
 </html>

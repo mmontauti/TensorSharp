@@ -151,7 +151,7 @@ $("list").addEventListener("click", async (e) => {
 });
 $("stop").addEventListener("click", async () => {
   $("stop").disabled = true;
-  const r = await fetch("/api/stop", { method: "POST" });
+  const r = await fetch("/api/stop", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
   if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.error || "Stop failed"); }
   refresh();
 });
