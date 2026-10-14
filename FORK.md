@@ -71,7 +71,7 @@ The server log is written to `artifacts/model-switcher/server.log` and is cleare
 
 | Preset | Model | Notes |
 |---|---|---|
-| `qwen38-27b-skills` | Qwen 3.8 27B, IQ3_XXS (10.9 GB) | Agent Skills with scripts, `--code-exec` shell for large files, context capped at 65,536 tokens |
+| `qwen38-27b-skills` | Qwen 3.8 27B, IQ3_XXS (10.9 GB) | Agent Skills with scripts that can reach the network, `--code-exec` shell for large files, context capped at 65,536 tokens |
 | `qwen-image-21` | Qwen-Image 2.1, Q4_K_M + Qwen3-VL-8B encoder (10.3 GB) | Text-to-image and image editing |
 | `gemma4-e4b` | Gemma 4 E4B, Q8_0 (7.2 GB) | Small, fast text chat |
 
@@ -91,9 +91,10 @@ API.
 - The model server listens on all network interfaces by default, so other devices on your network
   can reach the chat UI and API. Use `--host 127.0.0.1` in a preset's `args` to keep it on this
   machine.
-- The presets allow skill scripts (`--skills-allow-exec`) and, for Qwen 3.8, a model-driven shell
-  (`--code-exec`). On macOS the sandbox does not fully confine child processes. Don't expose a server
-  with these options to people you don't trust.
+- The presets allow skill scripts (`--skills-allow-exec`). For Qwen 3.8, those scripts can also
+  reach the network (`--skills-allow-network`), and the model gets a shell (`--code-exec`). On macOS
+  the sandbox does not fully confine child processes. Don't expose a server with these options to
+  people you don't trust.
 - The switcher listens only on this machine. It answers the chat UI's own address
   (`localhost`/`127.0.0.1` on the model port) and refuses stop and start requests from any other web
   page.

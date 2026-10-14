@@ -9,7 +9,7 @@
     {
       "id": "qwen38-27b-skills",
       "name": "Qwen 3.8 27B · chat + skills",
-      "description": "Text chat (IQ3_XXS, 10.9 GB) with Agent Skills, sandboxed skill scripts and a code-execution shell for large files; 64k context.",
+      "description": "Text chat (IQ3_XXS, 10.9 GB) with Agent Skills, sandboxed skill scripts with network access and a code-execution shell for large files; 64k context.",
       "env": { "MAX_CONTEXT": "65536" },
       "args": [
         "--model", "models/Qwen3.8-27B-UD-IQ3_XXS.gguf",
@@ -19,6 +19,7 @@
         "--kv-cache-dtype", "q8_0",
         "--skills-dir", "TensorAgent/skills",
         "--skills-allow-exec",
+        "--skills-allow-network",
         "--code-exec"
       ]
     },

@@ -15,6 +15,10 @@ Changes in this fork ([mmontauti/TensorSharp](https://github.com/mmontauti/Tenso
   `--assistant-avatar`.
 - Fork note at the top of `README_zh-cn.md`, matching the English README.
 
+**Changed**
+
+- Qwen 3.8 27B preset: skill scripts can reach the network (`--skills-allow-network`).
+
 ### 2026-10-14 — chat history, model controls, remembered skills (`3a239763`)
 
 **Added**
