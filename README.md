@@ -6,6 +6,12 @@
 
 [English](README.md) | [中文](README_zh-cn.md)
 
+> **About this fork.** [mmontauti/TensorSharp](https://github.com/mmontauti/TensorSharp) is a fork of
+> [zhongkaifu/TensorSharp](https://github.com/zhongkaifu/TensorSharp) that adds local-use tooling on the
+> `local-tools` branch: chat history and remembered skills in the web UI, a model switcher with run/stop
+> from the chat header, and a live performance dashboard. See [FORK.md](FORK.md) for setup and the
+> [changelog](CHANGELOG.md) for what changed. The rest of this README is upstream's.
+
 **Native .NET LLM inference engine for GGUF models** — autoregressive LLMs *and* DiffusionGemma-style text-diffusion, plus [Qwen-Image-2.1 generation and editing](docs/models/qwenimage21.md), Qwen-Image-Edit, and MiniMax-H3 video with native 32 kHz stereo audio (and Wan 2.1/2.2 for video alone). Ships a console app, a browser chat UI, and Ollama/OpenAI-compatible HTTP APIs. The .NET runtime offers managed CPU and native accelerator backends; published comparisons use identical GGUF files and hardware. The optional `TensorSharp.AgentHost` layer adds Agent Skills and a bounded, in-process model-to-tool loop for sandboxed file and shell work.
 
 ## Supported model families at a glance
