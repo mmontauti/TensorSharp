@@ -6,6 +6,11 @@
 
 [English](README.md) | [中文](README_zh-cn.md)
 
+> **关于此 fork。** [mmontauti/TensorSharp](https://github.com/mmontauti/TensorSharp) 是
+> [zhongkaifu/TensorSharp](https://github.com/zhongkaifu/TensorSharp) 的 fork，在 `local-tools` 分支上增加了本地使用工具：
+> Web 界面中的聊天记录与技能选择记忆、可在聊天页顶部运行/停止模型的模型切换器，以及实时性能面板。
+> 安装与使用见 [FORK.md](FORK.md)（英文），变更见 [更新日志](CHANGELOG.md)（英文）。本 README 其余内容来自上游。
+
 **面向 GGUF 模型的原生 .NET LLM 推理引擎** —— 覆盖自回归 LLM *与* DiffusionGemma 风格的文本扩散模型，以及 Qwen-Image-Edit 图像编辑、MiniMax-H3 视频 + 原生 32 kHz 立体声音频联合生成（Wan 2.1/2.2 则只生成视频）。提供控制台应用、浏览器聊天界面，以及兼容 Ollama/OpenAI 的 HTTP API。.NET 运行时提供纯托管 CPU 与原生加速后端；已发布的对比使用相同 GGUF 文件和硬件。可选的 `TensorSharp.AgentHost` 层还提供 Agent Skills，以及用于沙箱化文件和 shell 操作的、有界进程内“模型→工具”循环。
 
 ## 支持的模型家族一览

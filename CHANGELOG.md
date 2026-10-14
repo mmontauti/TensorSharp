@@ -9,7 +9,11 @@ Changes in this fork ([mmontauti/TensorSharp](https://github.com/mmontauti/Tenso
 
 ### Unreleased
 
-Nothing yet.
+**Added**
+
+- Robot assistant avatar (`eng/model-switcher/robot-avatar.svg`), used by all presets through
+  `--assistant-avatar`.
+- Fork note at the top of `README_zh-cn.md`, matching the English README.
 
 ### 2026-10-14 — chat history, model controls, remembered skills (`3a239763`)
 

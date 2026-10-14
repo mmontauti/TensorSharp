@@ -14,6 +14,7 @@
       "args": [
         "--model", "models/Qwen3.8-27B-UD-IQ3_XXS.gguf",
         "--backend", "ggml_metal",
+        "--assistant-avatar", "eng/model-switcher/robot-avatar.svg",
         "--max-tokens", "4096",
         "--kv-cache-dtype", "q8_0",
         "--skills-dir", "TensorAgent/skills",
@@ -31,6 +32,7 @@
         "--qwen-image-vl", "models/qwen-image-2.1/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
         "--qwen-image-mmproj", "models/qwen-image-2.1/mmproj-Qwen3VL-8B-Instruct-F16.gguf",
         "--backend", "ggml_metal",
+        "--assistant-avatar", "eng/model-switcher/robot-avatar.svg",
         "--skills-dir", "TensorAgent/skills",
         "--skills-allow-exec"
       ]
@@ -42,6 +44,7 @@
       "args": [
         "--model", "models/gemma-4-E4B-it-Q8_0.gguf",
         "--backend", "ggml_metal",
+        "--assistant-avatar", "eng/model-switcher/robot-avatar.svg",
         "--max-tokens", "4096",
         "--skills-dir", "TensorAgent/skills",
         "--skills-allow-exec"
